@@ -13,27 +13,27 @@ for file in os.listdir(folder_path):
         df_temp = pd.read_excel(file_path)
         all_dataframes.append(df_temp)
 
-# Combine into a single dataframe
 df = pd.concat(all_dataframes, ignore_index=True)
+print("Loaded columns:", df.columns.tolist())  # Debug line
 
-# 🔹 Initialize Dash app
+# Rename Taluka column internally if needed
+# df = df.rename(columns={"Taluka": "Tehsil"})  # Optional if you want to keep using 'Tehsil'
+
 app = dash.Dash(__name__)
-server = app.server  # For deployment on Render or Heroku
+server = app.server
 app.title = "Ownership Identification"
 
-# 🔹 Layout
+# Layout
 app.layout = html.Div([
-    html.H2("Ownership Identification Dashboard"),
+    html.H2("Ownership Identification Dashboard", id='header'),
 
     html.Label("Select District"),
-    dcc.Dropdown(
-        id='district-dropdown',
-        options=[{'label': dist, 'value': dist} for dist in sorted(df['District'].dropna().unique())],
-        placeholder="Select District"
-    ),
+    dcc.Dropdown(id='district-dropdown',
+                 options=[{'label': dist, 'value': dist} for dist in sorted(df['District'].dropna().unique())],
+                 placeholder="Select District"),
 
-    html.Label("Select Tehsil"),
-    dcc.Dropdown(id='tehsil-dropdown', placeholder="Select Tehsil"),
+    html.Label("Select Taluka"),
+    dcc.Dropdown(id='taluka-dropdown', placeholder="Select Taluka"),
 
     html.Label("Select Village"),
     dcc.Dropdown(id='village-dropdown', placeholder="Select Village"),
@@ -52,65 +52,81 @@ app.layout = html.Div([
     })
 ])
 
-# 🔹 Callback to update Tehsil options based on selected district
+# 🔁 Callback to update Taluka options
 @app.callback(
-    Output('tehsil-dropdown', 'options'),
+    Output('taluka-dropdown', 'options'),
     Input('district-dropdown', 'value')
 )
-def update_tehsils(selected_district):
+def update_talukas(selected_district):
+    print("Selected District:", selected_district)
     if not selected_district:
         return []
-    return [{'label': t, 'value': t} for t in sorted(df[df['District'] == selected_district]['Tehsil'].dropna().unique())]
+    try:
+        talukas = df[df['District'] == selected_district]['Taluka'].dropna().unique()
+        print("Talukas:", talukas)
+        return [{'label': t, 'value': t} for t in sorted(talukas)]
+    except Exception as e:
+        print("Error updating Talukas:", e)
+        return []
 
-# 🔹 Callback to update Village options based on selected district and tehsil
+# 🔁 Callback to update Villages
 @app.callback(
     Output('village-dropdown', 'options'),
     [Input('district-dropdown', 'value'),
-     Input('tehsil-dropdown', 'value')]
+     Input('taluka-dropdown', 'value')]
 )
-def update_villages(district, tehsil):
-    if not (district and tehsil):
+def update_villages(district, taluka):
+    if not (district and taluka):
         return []
-    dff = df[(df['District'] == district) & (df['Tehsil'] == tehsil)]
-    return [{'label': v, 'value': v} for v in sorted(dff['Village'].dropna().unique())]
+    try:
+        dff = df[(df['District'] == district) & (df['Taluka'] == taluka)]
+        return [{'label': v, 'value': v} for v in sorted(dff['Village'].dropna().unique())]
+    except Exception as e:
+        print("Error updating Villages:", e)
+        return []
 
-# 🔹 Callback to update Plot No. options based on selected district, tehsil, and village
+# 🔁 Callback to update Plot Nos
 @app.callback(
     Output('plotno-dropdown', 'options'),
     [Input('district-dropdown', 'value'),
-     Input('tehsil-dropdown', 'value'),
+     Input('taluka-dropdown', 'value'),
      Input('village-dropdown', 'value')]
 )
-def update_plotnos(district, tehsil, village):
-    if not (district and tehsil and village):
+def update_plotnos(district, taluka, village):
+    if not (district and taluka and village):
         return []
-    dff = df[(df['District'] == district) &
-             (df['Tehsil'] == tehsil) &
-             (df['Village'] == village)]
-    return [{'label': p, 'value': p} for p in sorted(dff['Plot No.'].dropna().unique())]
+    try:
+        dff = df[(df['District'] == district) & (df['Taluka'] == taluka) & (df['Village'] == village)]
+        return [{'label': p, 'value': p} for p in sorted(dff['Plot No.'].dropna().unique())]
+    except Exception as e:
+        print("Error updating Plot Nos:", e)
+        return []
 
-# 🔹 Callback to display Plot Info based on selected options
+# 🔁 Callback to show Plot Info
 @app.callback(
     Output('plot-info-box', 'children'),
     [Input('district-dropdown', 'value'),
-     Input('tehsil-dropdown', 'value'),
+     Input('taluka-dropdown', 'value'),
      Input('village-dropdown', 'value'),
      Input('plotno-dropdown', 'value')]
 )
-def display_plot_info(district, tehsil, village, plotno):
-    if not all([district, tehsil, village, plotno]):
+def display_plot_info(district, taluka, village, plotno):
+    if not all([district, taluka, village, plotno]):
         return "Please select all options."
-    row = df[(df['District'] == district) &
-             (df['Tehsil'] == tehsil) &
-             (df['Village'] == village) &
-             (df['Plot No.'] == plotno)]
-    if not row.empty:
-        return row['Plot Info'].values[0]
-    return "No plot info available."
+    try:
+        row = df[(df['District'] == district) & 
+                 (df['Taluka'] == taluka) & 
+                 (df['Village'] == village) & 
+                 (df['Plot No.'] == plotno)]
+        if not row.empty:
+            return row['Plot Info'].values[0]
+        return "No plot info available."
+    except Exception as e:
+        print("Error displaying Plot Info:", e)
+        return "Error occurred."
 
-# 🔹 Run the app with dynamic port binding
-import os
-port = int(os.environ.get('PORT', 8050))
-
+# ✅ Correct run method for Dash 3+
 if __name__ == '__main__':
-    app.run(debug=True, port=port, host='0.0.0.0')
+    import os
+    port = int(os.environ.get("PORT", 8050))
+    app.run(debug=True, port=port, host="0.0.0.0")
