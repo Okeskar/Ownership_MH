@@ -3,10 +3,11 @@ from dash import html, dcc, Input, Output
 import pandas as pd
 import os
 
-# 🔹 Load and combine all Excel files from the "data" folder
+# Load and combine all Excel files from the "data" folder
 folder_path = "data"
 all_dataframes = []
 
+# Loop through all files in the folder and load the Excel files
 for file in os.listdir(folder_path):
     if file.endswith(".xlsx"):
         file_path = os.path.join(folder_path, file)
@@ -16,21 +17,19 @@ for file in os.listdir(folder_path):
 # Combine into a single dataframe
 df = pd.concat(all_dataframes, ignore_index=True)
 
-# 🔹 Initialize Dash app
+# Initialize Dash app
 app = dash.Dash(__name__)
-server = app.server  # For deployment on Render
+server = app.server  # For deployment on Render or Heroku
 app.title = "Ownership Identification"
 
-# 🔹 Dashboard Layout
+# Layout
 app.layout = html.Div([
     html.H2("Ownership Identification Dashboard"),
 
     html.Label("Select District"),
-    dcc.Dropdown(
-        id='district-dropdown',
-        options=[{'label': dist, 'value': dist} for dist in sorted(df['District'].dropna().unique())],
-        placeholder="Select District"
-    ),
+    dcc.Dropdown(id='district-dropdown',
+                 options=[{'label': dist, 'value': dist} for dist in sorted(df['District'].dropna().unique())],
+                 placeholder="Select District"),
 
     html.Label("Select Tehsil"),
     dcc.Dropdown(id='tehsil-dropdown', placeholder="Select Tehsil"),
@@ -52,24 +51,30 @@ app.layout = html.Div([
     })
 ])
 
-# 🔁 Callback to update Tehsil based on District
+# Callback to update Tehsil options based on District selection
 @app.callback(
     Output('tehsil-dropdown', 'options'),
     Input('district-dropdown', 'value')
 )
 def update_tehsils(selected_district):
+    print("Selected District:", selected_district)  # DEBUG LINE
+
     if not selected_district:
         return []
 
     filtered = df[df['District'] == selected_district]
+    print("Filtered Rows:", filtered.shape[0])  # DEBUG LINE
 
-    if filtered.empty or 'Tehsil' not in filtered:
+    if filtered.empty or 'Tehsil' not in filtered.columns:
+        print("No tehsil data found.")  # DEBUG LINE
         return []
 
     tehsils = filtered['Tehsil'].dropna().unique()
+    print("Tehsils Found:", tehsils)  # DEBUG LINE
+
     return [{'label': t, 'value': t} for t in sorted(tehsils)]
 
-# 🔁 Callback to update Village based on Tehsil
+# Callback to update Village options based on District and Tehsil selection
 @app.callback(
     Output('village-dropdown', 'options'),
     [Input('district-dropdown', 'value'),
@@ -78,16 +83,10 @@ def update_tehsils(selected_district):
 def update_villages(district, tehsil):
     if not (district and tehsil):
         return []
+    dff = df[(df['District'] == district) & (df['Tehsil'] == tehsil)]
+    return [{'label': v, 'value': v} for v in sorted(dff['Village'].dropna().unique())]
 
-    filtered = df[(df['District'] == district) & (df['Tehsil'] == tehsil)]
-
-    if filtered.empty or 'Village' not in filtered:
-        return []
-
-    villages = filtered['Village'].dropna().unique()
-    return [{'label': v, 'value': v} for v in sorted(villages)]
-
-# 🔁 Callback to update Plot No. based on Village
+# Callback to update Plot No. options based on District, Tehsil, and Village selection
 @app.callback(
     Output('plotno-dropdown', 'options'),
     [Input('district-dropdown', 'value'),
@@ -97,20 +96,12 @@ def update_villages(district, tehsil):
 def update_plotnos(district, tehsil, village):
     if not (district and tehsil and village):
         return []
+    dff = df[(df['District'] == district) & 
+             (df['Tehsil'] == tehsil) & 
+             (df['Village'] == village)]
+    return [{'label': p, 'value': p} for p in sorted(dff['Plot No.'].dropna().unique())]
 
-    filtered = df[
-        (df['District'] == district) &
-        (df['Tehsil'] == tehsil) &
-        (df['Village'] == village)
-    ]
-
-    if filtered.empty or 'Plot No.' not in filtered:
-        return []
-
-    plots = filtered['Plot No.'].dropna().unique()
-    return [{'label': p, 'value': p} for p in sorted(plots)]
-
-# 🔁 Callback to show Plot Info
+# Callback to display Plot Info based on selections
 @app.callback(
     Output('plot-info-box', 'children'),
     [Input('district-dropdown', 'value'),
@@ -122,18 +113,14 @@ def display_plot_info(district, tehsil, village, plotno):
     if not all([district, tehsil, village, plotno]):
         return "Please select all options."
 
-    filtered = df[
-        (df['District'] == district) &
-        (df['Tehsil'] == tehsil) &
-        (df['Village'] == village) &
-        (df['Plot No.'] == plotno)
-    ]
-
-    if not filtered.empty and 'Plot Info' in filtered.columns:
-        return filtered['Plot Info'].values[0]
-
+    row = df[(df['District'] == district) & 
+             (df['Tehsil'] == tehsil) & 
+             (df['Village'] == village) & 
+             (df['Plot No.'] == plotno)]
+    if not row.empty:
+        return row['Plot Info'].values[0]
     return "No plot info available."
 
-# ✅ Run app (for Render deployment)
+# Run the app
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=10000)
+    app.run_server(debug=True)
