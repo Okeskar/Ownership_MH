@@ -1,4 +1,3 @@
-flask
+dash
 pandas
-plotly
-gunicorn
+openpyxl
