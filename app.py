@@ -18,7 +18,7 @@ df = pd.concat(all_dataframes, ignore_index=True)
 
 # 🔹 Initialize Dash app
 app = dash.Dash(__name__)
-server = app.server  # For deployment on Render or Heroku
+server = app.server  # For deployment on Render
 app.title = "Ownership Identification"
 
 # 🔹 Dashboard Layout
@@ -26,9 +26,11 @@ app.layout = html.Div([
     html.H2("Ownership Identification Dashboard"),
 
     html.Label("Select District"),
-    dcc.Dropdown(id='district-dropdown',
-                 options=[{'label': dist, 'value': dist} for dist in sorted(df['District'].dropna().unique())],
-                 placeholder="Select District"),
+    dcc.Dropdown(
+        id='district-dropdown',
+        options=[{'label': dist, 'value': dist} for dist in sorted(df['District'].dropna().unique())],
+        placeholder="Select District"
+    ),
 
     html.Label("Select Tehsil"),
     dcc.Dropdown(id='tehsil-dropdown', placeholder="Select Tehsil"),
@@ -50,7 +52,7 @@ app.layout = html.Div([
     })
 ])
 
-# 🔹 Callback to update Tehsil options
+# 🔁 Callback to update Tehsil based on District
 @app.callback(
     Output('tehsil-dropdown', 'options'),
     Input('district-dropdown', 'value')
@@ -58,11 +60,16 @@ app.layout = html.Div([
 def update_tehsils(selected_district):
     if not selected_district:
         return []
-    return [{'label': t, 'value': t} for t in sorted(
-        df[df['District'] == selected_district]['Tehsil'].dropna().unique()
-    )]
 
-# 🔹 Callback to update Village options
+    filtered = df[df['District'] == selected_district]
+
+    if filtered.empty or 'Tehsil' not in filtered:
+        return []
+
+    tehsils = filtered['Tehsil'].dropna().unique()
+    return [{'label': t, 'value': t} for t in sorted(tehsils)]
+
+# 🔁 Callback to update Village based on Tehsil
 @app.callback(
     Output('village-dropdown', 'options'),
     [Input('district-dropdown', 'value'),
@@ -71,10 +78,16 @@ def update_tehsils(selected_district):
 def update_villages(district, tehsil):
     if not (district and tehsil):
         return []
-    dff = df[(df['District'] == district) & (df['Tehsil'] == tehsil)]
-    return [{'label': v, 'value': v} for v in sorted(dff['Village'].dropna().unique())]
 
-# 🔹 Callback to update Plot No. options
+    filtered = df[(df['District'] == district) & (df['Tehsil'] == tehsil)]
+
+    if filtered.empty or 'Village' not in filtered:
+        return []
+
+    villages = filtered['Village'].dropna().unique()
+    return [{'label': v, 'value': v} for v in sorted(villages)]
+
+# 🔁 Callback to update Plot No. based on Village
 @app.callback(
     Output('plotno-dropdown', 'options'),
     [Input('district-dropdown', 'value'),
@@ -84,10 +97,20 @@ def update_villages(district, tehsil):
 def update_plotnos(district, tehsil, village):
     if not (district and tehsil and village):
         return []
-    dff = df[(df['District'] == district) & (df['Tehsil'] == tehsil) & (df['Village'] == village)]
-    return [{'label': p, 'value': p} for p in sorted(dff['Plot No.'].dropna().unique())]
 
-# 🔹 Callback to display Plot Info
+    filtered = df[
+        (df['District'] == district) &
+        (df['Tehsil'] == tehsil) &
+        (df['Village'] == village)
+    ]
+
+    if filtered.empty or 'Plot No.' not in filtered:
+        return []
+
+    plots = filtered['Plot No.'].dropna().unique()
+    return [{'label': p, 'value': p} for p in sorted(plots)]
+
+# 🔁 Callback to show Plot Info
 @app.callback(
     Output('plot-info-box', 'children'),
     [Input('district-dropdown', 'value'),
@@ -98,14 +121,19 @@ def update_plotnos(district, tehsil, village):
 def display_plot_info(district, tehsil, village, plotno):
     if not all([district, tehsil, village, plotno]):
         return "Please select all options."
-    row = df[(df['District'] == district) &
-             (df['Tehsil'] == tehsil) &
-             (df['Village'] == village) &
-             (df['Plot No.'] == plotno)]
-    if not row.empty:
-        return row['Plot Info'].values[0]
+
+    filtered = df[
+        (df['District'] == district) &
+        (df['Tehsil'] == tehsil) &
+        (df['Village'] == village) &
+        (df['Plot No.'] == plotno)
+    ]
+
+    if not filtered.empty and 'Plot Info' in filtered.columns:
+        return filtered['Plot Info'].values[0]
+
     return "No plot info available."
 
-# 🔹 Run the app
+# ✅ Run app (for Render deployment)
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=10000)
