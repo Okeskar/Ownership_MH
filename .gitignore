@@ -1,0 +1,17 @@
+# Ignore Python bytecode files
+*.pyc
+__pycache__/
+
+# Ignore virtual environment directories
+venv/
+env/
+
+# Ignore .env file for sensitive information (API keys, passwords)
+.env
+
+# Ignore Excel files if you don't want them tracked
+*.xlsx
+
+# Ignore system files (e.g., macOS, Windows)
+.DS_Store
+Thumbs.db
