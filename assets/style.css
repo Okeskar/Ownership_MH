@@ -1,0 +1,11 @@
+/* C:\Onkar\Ownership\assets\style.css */
+.plot-label {
+    font-size: 14px;
+    font-weight: bold;
+    color: #000000;
+    background-color: rgba(255, 255, 255, 0.8);
+    border: 1px solid #333333;
+    border-radius: 4px;
+    padding: 4px 8px;
+    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+}

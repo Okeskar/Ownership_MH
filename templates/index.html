@@ -1,0 +1,37 @@
+fetch('/get_plot_info', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(filters)
+})
+.then(res => res.json())
+.then(data => {
+    const infoDiv = document.getElementById('plot-info');
+    infoDiv.innerHTML = '<h3>Plot Info</h3>';
+    for (let key in data.plot_info) {
+        infoDiv.innerHTML += `<strong>${key}:</strong> ${data.plot_info[key]}<br>`;
+    }
+
+    // Remove old layers
+    if (selectedLayer) map.removeLayer(selectedLayer);
+    otherLayers.forEach(layer => map.removeLayer(layer));
+    otherLayers = [];
+
+    // Add selected plot with red border
+    selectedLayer = L.geoJSON(data.selected_plot, {
+        style: { color: 'red', weight: 3 }
+    }).addTo(map);
+
+    // Fit map to bounds of selected plot
+    if (selectedLayer) {
+        const bounds = selectedLayer.getBounds();
+        map.fitBounds(bounds, { padding: [20, 20] });
+    }
+
+    // Add other adjacent plots in blue
+    data.other_plots.forEach(f => {
+        const layer = L.geoJSON(f, {
+            style: { color: 'blue', weight: 1 }
+        }).addTo(map);
+        otherLayers.push(layer);
+    });
+});
