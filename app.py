@@ -66,8 +66,21 @@ app = dash.Dash(__name__)
 app.title = "Khasra Dashboard"
 
 # Layout
-app.layout = html.Div([
-    html.H2("Khasra Ownership Map Dashboard", style={'textAlign': 'center', 'color': '#2c3e50'}),
+app.layout = html.Div([ 
+    # Title on the top-right
+    html.Div(
+        "Blueleap Consulting Private Limited", 
+        style={
+            'position': 'absolute',
+            'top': '10px',
+            'right': '20px',
+            'fontWeight': 'bold',
+            'fontSize': '14px',
+            'color': '#2c3e50'
+        }
+    ),
+    
+    html.H2("Land Ownership Explorer", style={'textAlign': 'center', 'color': '#2c3e50'}),
     html.Div([
         html.Div([
             html.Label("Select District", style={'fontWeight': 'bold'}),
